@@ -4,7 +4,7 @@ const fs = require('fs');
 const qrcode = require('qrcode');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Usa a porta dinâmica do Render
 
 app.use(express.static('public'));
 app.use(express.json());
@@ -92,5 +92,5 @@ app.post('/desconectar', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🔥 Servidor rodando em http://localhost:${PORT}`);
+    console.log(`🔥 Servidor rodando na porta ${PORT}`);
 });
