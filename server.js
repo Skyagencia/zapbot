@@ -2,11 +2,13 @@ const express = require('express');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const fs = require('fs');
 const qrcode = require('qrcode');
+const path = require('path');  // Importando o módulo path para resolver caminhos de arquivos
 
 const app = express();
 const PORT = process.env.PORT || 3000; // Usa a porta dinâmica do Render
 
-app.use(express.static('public'));
+// Serve arquivos estáticos da raiz do projeto (onde o index.html está localizado)
+app.use(express.static(path.join(__dirname)));  
 app.use(express.json());
 
 const client = new Client({
@@ -29,6 +31,11 @@ client.on('ready', () => {
 });
 
 client.initialize();
+
+// Rota para servir o index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html')); // Serve o index.html da raiz do projeto
+});
 
 app.get('/qrcode', (req, res) => {
     if (qrCodeAtual) {
