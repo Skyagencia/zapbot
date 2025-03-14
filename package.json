@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "axios": "^1.7.8",
+    "body-parser": "^1.20.3",
+    "express": "^4.21.2",
+    "fs": "0.0.1-security",
+    "moment-timezone": "^0.5.45",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "name": "ZapBot",
+  "version": "1.0.0",
+  "main": "glow.js",
+  "devDependencies": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

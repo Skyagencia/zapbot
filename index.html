@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZapBot - Disparador de Mensagens</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+        body {
+            background-color: #f8f9fa;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: auto;
+            transition: all 0.3s;
+        }
+        .container:hover {
+            transform: scale(1.02);
+        }
+        h2 {
+            color: #343a40;
+            margin-bottom: 15px;
+        }
+        textarea, input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 14px;
+            resize: none;
+        }
+        button {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: white;
+            border: none;
+            padding: 12px;
+            cursor: pointer;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #1e7e34;
+        }
+        #btn-desconectar {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+        #btn-desconectar:hover {
+            background: #a71d2a;
+        }
+        #qr-code {
+            display: none;
+            margin-top: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        #status {
+            margin: 15px 0;
+            font-weight: bold;
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>ZapBot - Conectar WhatsApp</h2>
+        <button id="btn-conectar">Gerar QR Code</button>
+        <button id="btn-desconectar">Desconectar</button>
+        <img id="qr-code" src="" alt="QR Code para conexão">
+        <p id="status">Aguardando conexão...</p>
+        
+        <div id="mensagem-container" style="display: none;">
+            <h2>Digite sua mensagem</h2>
+            <textarea id="mensagem" rows="4" placeholder="Digite a mensagem aqui..."></textarea>
+            <h2>Adicione números (um por linha)</h2>
+            <textarea id="numeros" rows="4" placeholder="Exemplo: 5511998765432"></textarea>
+            <button id="btn-salvar">Salvar Números</button>
+            <button id="btn-limpar">Limpar Números</button>
+            <button id="btn-disparar">Disparar Mensagens</button>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('btn-conectar').addEventListener('click', () => {
+            fetch('/qrcode')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.qr) {
+                        document.getElementById('qr-code').src = data.qr;
+                        document.getElementById('qr-code').style.display = 'block';
+                    }
+                });
+        });
+
+        document.getElementById('btn-desconectar').addEventListener('click', () => {
+            fetch('/desconectar', { method: 'POST' })
+                .then(response => response.text())
+                .then(() => {
+                    location.reload(); // Recarregar a página após desconectar para tentar gerar novo QR Code
+                })
+                .catch(err => alert('Erro ao desconectar.'));
+        });
+
+        function verificarConexao() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.conectado) {
+                        document.getElementById('status').innerText = "✅ WhatsApp Conectado!";
+                        document.getElementById('status').style.color = "green";
+                        document.getElementById('mensagem-container').style.display = "block";
+                    } else {
+                        document.getElementById('status').innerText = "❌ Aguardando conexão...";
+                        document.getElementById('status').style.color = "red";
+                        // Ao desconectar, tenta gerar QR automaticamente
+                        fetch('/qrcode')
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.qr) {
+                                    document.getElementById('qr-code').src = data.qr;
+                                    document.getElementById('qr-code').style.display = 'block';
+                                }
+                            });
+                    }
+                });
+        }
+
+        setInterval(verificarConexao, 3000);
+
+        document.getElementById('btn-salvar').addEventListener('click', () => {
+            const numeros = document.getElementById('numeros').value;
+            fetch('/salvar-numeros', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ numeros })
+            }).then(response => response.text())
+              .then(alert);
+        });
+
+        document.getElementById('btn-limpar').addEventListener('click', () => {
+            fetch('/limpar-numeros', { method: 'POST' })
+                .then(response => response.text())
+                .then(message => alert(message))
+                .catch(err => alert('Erro ao limpar números.'));
+        });
+
+        document.getElementById('btn-disparar').addEventListener('click', () => {
+            const mensagem = document.getElementById('mensagem').value;
+            fetch('/disparar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mensagem })
+            }).then(response => response.text())
+              .then(alert);
+        });
+    </script>
+</body>
+</html>
