@@ -1,103 +1,65 @@
-const express = require('express');
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const fs = require('fs');
-const qrcode = require('qrcode');
-const path = require('path');  // Importando o módulo path para resolver caminhos de arquivos
+const { Client, LocalAuth } = require("whatsapp-web.js");
+const express = require("express");
+const qrcode = require("qrcode-terminal");
+const rimraf = require("rimraf");
+const { execSync } = require("child_process");
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Usa a porta dinâmica do Render
+const port = process.env.PORT || 10000;
 
-// Serve arquivos estáticos da raiz do projeto (onde o index.html está localizado)
-app.use(express.static(path.join(__dirname)));  
-app.use(express.json());
+// Corrigindo o caminho de autenticação para evitar erros no Render
+const authPath = "/tmp/wwebjs_auth";
 
+// Configuração do cliente do WhatsApp Web.js
 const client = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: { headless: true }
+    authStrategy: new LocalAuth({ dataPath: authPath }),
+    puppeteer: {
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    }
 });
 
-let whatsappConectado = false;
-let qrCodeAtual = "";
-
-client.on('qr', async (qr) => {
-    qrCodeAtual = await qrcode.toDataURL(qr);
+// Evento disparado quando o QR Code é gerado
+client.on("qr", (qr) => {
     console.log("🔹 QR Code gerado! Escaneie para conectar.");
+    qrcode.generate(qr, { small: true });
 });
 
-client.on('ready', () => {
-    console.log('✅ WhatsApp conectado!');
-    whatsappConectado = true;
-    qrCodeAtual = ""; 
+// Evento disparado quando o WhatsApp está pronto
+client.on("ready", () => {
+    console.log("✅ Cliente WhatsApp conectado e pronto!");
 });
 
+// Evento disparado ao receber uma mensagem
+client.on("message", (message) => {
+    console.log(`📩 Mensagem recebida: ${message.body}`);
+    if (message.body.toLowerCase() === "ping") {
+        message.reply("Pong! 🏓");
+    }
+});
+
+// Iniciando o cliente do WhatsApp
 client.initialize();
 
-// Rota para servir o index.html
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html')); // Serve o index.html da raiz do projeto
+// Endpoint básico para verificar se o servidor está rodando
+app.get("/", (req, res) => {
+    res.send("🤖 Bot do WhatsApp rodando!");
 });
 
-app.get('/qrcode', (req, res) => {
-    if (qrCodeAtual) {
-        res.json({ qr: qrCodeAtual });
-    } else {
-        res.json({ message: "Já conectado ou aguardando QR Code..." });
+// Rota para resetar a autenticação (se necessário)
+app.get("/reset", (req, res) => {
+    try {
+        console.log("🚀 Resetando sessão do WhatsApp...");
+        execSync(`chmod -R 777 ${authPath}`);
+        rimraf.sync(authPath);
+        res.send("✅ Sessão resetada com sucesso!");
+    } catch (error) {
+        console.error("❌ Erro ao resetar sessão:", error);
+        res.status(500).send("Erro ao resetar sessão.");
     }
 });
 
-app.get('/status', (req, res) => {
-    res.json({ conectado: whatsappConectado });
-});
-
-app.post('/salvar-numeros', (req, res) => {
-    const { numeros } = req.body;
-    if (!numeros.trim()) {
-        return res.send("Nenhum número informado.");
-    }
-
-    fs.appendFileSync('contatos.txt', `\n${numeros.trim()}`);
-    res.send("✅ Números adicionados com sucesso!");
-});
-
-app.post('/limpar-numeros', (req, res) => {
-    fs.writeFileSync('contatos.txt', ''); // Limpar o conteúdo do arquivo
-    res.send("✅ Números limpos com sucesso!");
-});
-
-app.post('/disparar', (req, res) => {
-    if (!whatsappConectado) {
-        return res.send("❌ WhatsApp não está conectado.");
-    }
-
-    const { mensagem } = req.body;
-    const contatos = fs.readFileSync('contatos.txt', 'utf8')
-        .split('\n')
-        .map(num => num.trim())
-        .filter(num => num);
-
-    if (contatos.length === 0) {
-        return res.send("❌ Nenhum número salvo para envio.");
-    }
-
-    contatos.forEach((numero, index) => {
-        setTimeout(() => {
-            client.sendMessage(`${numero}@c.us`, mensagem)
-                .then(() => console.log(`✅ Mensagem enviada para ${numero}`))
-                .catch(err => console.error(`❌ Erro ao enviar para ${numero}:`, err));
-        }, index * 5000);
-    });
-
-    res.send("📩 Disparo iniciado!");
-});
-
-app.post('/desconectar', (req, res) => {
-    console.log('🔴 Desconectando WhatsApp...');
-    fs.rmSync('./.wwebjs_auth', { recursive: true, force: true });
-    whatsappConectado = false;
-    qrCodeAtual = ""; // Limpar o QR Code ao desconectar
-    res.send("WhatsApp desconectado! Recarregue a página e escaneie um novo QR Code.");
-});
-
-app.listen(PORT, () => {
-    console.log(`🔥 Servidor rodando na porta ${PORT}`);
+// Iniciando o servidor Express
+app.listen(port, () => {
+    console.log(`🔥 Servidor rodando na porta ${port}`);
 });
